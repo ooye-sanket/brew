@@ -356,6 +356,14 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
     cached_location.basename.sub(/^[\da-f]{64}--/, "")
   end
 
+  sig { params(target_cached_location: Pathname, target_symlink_location: Pathname).void }
+  def create_symlink_to_cached_download(target_cached_location, target_symlink_location)
+    target_symlink_location.dirname.mkpath
+    FileUtils.ln_s target_cached_location.relative_path_from(target_symlink_location.dirname), target_symlink_location, force: true
+  end
+
+  private
+
   private
 
   sig { returns(String) }

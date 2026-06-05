@@ -105,6 +105,47 @@ RSpec.describe Homebrew::Cmd::Update do
     expect(args_file.read).to eq("update-report\n--auto-update\n")
   end
 
+  it "fetches internal API data by default" do
+    args_file = test_root/"brew-args.txt"
+    setup_update_utils
+    (test_root/"cache").mkpath
+    (test_root/"repository").mkpath
+
+    _stdout, stderr, status = run_update_shell(
+      <<~SH,
+        source "#{update_script}"
+        bottle_tag() { echo arm64_sequoia; }
+        brew() { :; }
+        fetch_api_file() { printf '%s\n' "$1" >> "#{args_file}"; }
+        git_init_if_necessary() { :; }
+        git() {
+          [[ "$1" == "--version" ]] && return 0
+          return 1
+        }
+        lock() { :; }
+        odie() { echo "Error: $*" >&2; exit 1; }
+        ohai() { :; }
+        onoe() { echo "Error: $*" >&2; }
+        safe_cd() { cd "$1" &>/dev/null || exit 1; }
+        setup_ca_certificates() { :; }
+        setup_curl() { :; }
+        setup_git() { :; }
+        homebrew-update --auto-update
+      SH
+      {
+        "HOMEBREW_CACHE"      => (test_root/"cache").to_s,
+        "HOMEBREW_CELLAR"     => (test_root/"cellar").to_s,
+        "HOMEBREW_LIBRARY"    => (test_root/"Library").to_s,
+        "HOMEBREW_PREFIX"     => (test_root/"prefix").to_s,
+        "HOMEBREW_REPOSITORY" => (test_root/"repository").to_s,
+      },
+    )
+
+    expect(status.success?).to be true
+    expect(stderr).to be_empty
+    expect(args_file.read).to eq("internal/packages.arm64_sequoia.jws.json\n")
+  end
+
   it "preserves `update-report` arguments and exit status with the Rust frontend enabled" do
     args_file = test_root/"brew-args.txt"
     brew_wrapper = test_root/"brew-wrapper"

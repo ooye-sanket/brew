@@ -378,10 +378,10 @@ RSpec.describe Homebrew::EnvConfig do
       expect(env_config.use_internal_api?).to be(true)
     end
 
-    it "returns false if HOMEBREW_NO_INSTALL_FROM_API is set" do
+    it "returns true if HOMEBREW_NO_INSTALL_FROM_API is also set" do
       ENV["HOMEBREW_USE_INTERNAL_API"] = "1"
       ENV["HOMEBREW_NO_INSTALL_FROM_API"] = "1"
-      expect(env_config.use_internal_api?).to be(false)
+      expect(env_config.use_internal_api?).to be(true)
     end
   end
 end

@@ -199,6 +199,14 @@ RSpec.configure do |config|
     allow(Utils::Curl).to receive(:curl_executable).and_raise(<<~ERROR)
       Unexpected call to Utils::Curl.curl_executable without setting :needs_network or :needs_utils_curl.
     ERROR
+
+    allow(Homebrew::API).to receive(:verify_and_parse_jws).and_wrap_original do |method, json_data|
+      if json_data.key?("homebrew_test_fixture_payload")
+        [true, JSON.parse(json_data.fetch("homebrew_test_fixture_payload"), freeze: true)]
+      else
+        method.call(json_data)
+      end
+    end
   end
 
   config.before(:each, :no_api) do
@@ -283,6 +291,23 @@ RSpec.configure do |config|
     # Link original API cache files to test cache directory.
     Pathname("#{ENV.fetch("HOMEBREW_CACHE")}/api").glob("*.json").each do |path|
       FileUtils.ln_s path, HOMEBREW_CACHE/"api/#{path.basename}"
+    end
+
+    if !example.metadata.key?(:needs_network) && !example.metadata.key?(:needs_utils_curl)
+      (HOMEBREW_CACHE/"api/internal").mkpath
+      (HOMEBREW_CACHE/"api/#{Homebrew::API::Internal.packages_endpoint}").write JSON.generate(
+        "homebrew_test_fixture_payload" => JSON.generate(
+          "formulae"               => {},
+          "casks"                  => {},
+          "formula_aliases"        => {},
+          "formula_renames"        => {},
+          "cask_renames"           => {},
+          "formula_tap_git_head"   => CoreTap.instance.git_head,
+          "cask_tap_git_head"      => "",
+          "formula_tap_migrations" => {},
+          "cask_tap_migrations"    => {},
+        ),
+      )
     end
 
     begin

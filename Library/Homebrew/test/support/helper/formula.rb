@@ -17,7 +17,8 @@ module Test
         ).returns(::Formula)
       }
       def formula(name = "formula_name", path: nil, spec: :stable, alias_path: nil, tap: nil, &block)
-        path ||= Formulary.find_formula_in_tap(name, tap || CoreTap.instance)
+        tap ||= CoreTap.instance
+        path ||= tap.formula_dir/"#{name}.rb"
         Class.new(::Formula, &block).new(name, path, spec, alias_path:, tap:)
       end
 

@@ -6,9 +6,11 @@ RSpec.describe Cask::CaskLoader::FromAPILoader, :cask do
 
   shared_context "with API setup" do |local_token|
     let(:api_token) { "#{local_token}-api" }
-    let(:cask_from_source) { Cask::CaskLoader.load(local_token) }
+    let(:cask_from_source) do
+      with_env(HOMEBREW_NO_INSTALL_FROM_API: "1") { Cask::CaskLoader.load(local_token) }
+    end
     let(:cask_json) do
-      hash = cask_from_source.to_hash_with_variations
+      hash = with_env(HOMEBREW_NO_INSTALL_FROM_API: "1") { cask_from_source.to_hash_with_variations }
       # This value will always be present in the json API, but is skipped in tests
       hash["tap_git_head"] = "abcdef1234567890abcdef1234567890abcdef12"
       json = JSON.pretty_generate(hash)
@@ -27,10 +29,13 @@ RSpec.describe Cask::CaskLoader::FromAPILoader, :cask do
   end
 
   shared_context "with internal API setup" do |local_token|
-    # Load the cask and generate its hash first before we enable internal API mode for the test body
-    let!(:cask_from_internal_source) { Cask::CaskLoader.load(local_token) }
+    let!(:cask_from_internal_source) do
+      with_env(HOMEBREW_NO_INSTALL_FROM_API: "1") { Cask::CaskLoader.load(local_token) }
+    end
     let!(:cask_internal_struct) do
-      hash_with_variations = cask_from_internal_source.to_hash_with_variations
+      hash_with_variations = with_env(HOMEBREW_NO_INSTALL_FROM_API: "1") do
+        cask_from_internal_source.to_hash_with_variations
+      end
       Homebrew::API::Cask::CaskStructGenerator.generate_cask_struct_hash(hash_with_variations)
     end
 
@@ -68,62 +73,6 @@ RSpec.describe Cask::CaskLoader::FromAPILoader, :cask do
 
       it "returns false" do
         expect(klass.try_new(api_token)).to be_nil
-      end
-    end
-
-    context "when using the API" do
-      include_context "with API setup", "test-opera"
-
-      it "returns a loader for valid token" do
-        expect(klass.try_new(api_token))
-          .to be_a(klass)
-          .and have_attributes(token: api_token)
-      end
-
-      it "returns a loader for valid full name" do
-        expect(klass.try_new("homebrew/cask/#{api_token}"))
-          .to be_a(klass)
-          .and have_attributes(token: api_token)
-      end
-
-      it "returns nil for full name with invalid tap" do
-        expect(klass.try_new("homebrew/foo/#{api_token}")).to be_nil
-      end
-
-      context "with core tap migration renames" do
-        let(:foo_tap) { Tap.fetch("homebrew", "foo") }
-
-        before do
-          foo_tap.path.mkpath
-        end
-
-        after do
-          FileUtils.rm_rf foo_tap.path
-        end
-
-        it "returns the tap migration rename by old token" do
-          old_token = "#{api_token}-old"
-          (foo_tap.path/"tap_migrations.json").write <<~JSON
-            { "#{old_token}": "homebrew/cask/#{api_token}" }
-          JSON
-
-          loader = Cask::CaskLoader::FromNameLoader.try_new(old_token)
-          expect(loader).to be_a(klass)
-          expect(loader.token).to eq api_token
-          expect(loader.path).not_to exist
-        end
-
-        it "returns the tap migration rename by old full name" do
-          old_token = "#{api_token}-old"
-          (foo_tap.path/"tap_migrations.json").write <<~JSON
-            { "#{old_token}": "homebrew/cask/#{api_token}" }
-          JSON
-
-          loader = Cask::CaskLoader::FromTapLoader.try_new("#{foo_tap}/#{old_token}")
-          expect(loader).to be_a(klass)
-          expect(loader.token).to eq api_token
-          expect(loader.path).not_to exist
-        end
       end
     end
 

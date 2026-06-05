@@ -700,10 +700,9 @@ module Homebrew
                      "if `--greedy` was passed when upgrading any cask on this list.",
       },
       HOMEBREW_USE_INTERNAL_API:                 {
-        # odeprecated: make default next release
-        description: "If set, test the new beta internal API for fetching formula and cask data.",
+        description: "Use the internal API for fetching formula and cask data.",
         boolean:     :set,
-        disabled_by: :HOMEBREW_NO_INSTALL_FROM_API,
+        hidden:      true,
       },
       HOMEBREW_VERBOSE:                          {
         description: "If set, always assume `--verbose` when running commands.",
